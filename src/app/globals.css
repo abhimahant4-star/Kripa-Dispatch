@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Brand palette taken from the Kirpa logo: deep navy, royal blue, gold. */
+@theme {
+  --color-navy-950: #050f2b;
+  --color-navy-900: #0a1a45;
+  --color-navy-800: #0f2560;
+  --color-navy-700: #163380;
+  --color-royal-600: #1d4fd1;
+  --color-royal-500: #2f66e8;
+  --color-royal-100: #e3ebfd;
+  --color-royal-50: #f1f5fe;
+  --color-gold-600: #b8860b;
+  --color-gold-500: #d4a017;
+  --color-gold-400: #e6b93a;
+  --color-gold-100: #fbf1d3;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: #f3f5fa;
+  color: #0f172a;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(10,26,69,0.04),0_8px_24px_-12px_rgba(10,26,69,0.12)];
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-gold-500 text-navy-950 shadow-sm hover:bg-gold-400;
+  }
+  .btn-navy {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-navy-800 text-white hover:bg-navy-700;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-red-600 text-white hover:bg-red-700;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-royal-500 focus:ring-2 focus:ring-royal-500/20;
+  }
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .th {
+    @apply whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .td {
+    @apply px-4 py-3 align-top text-sm;
+  }
+  .icon-btn {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-100;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
