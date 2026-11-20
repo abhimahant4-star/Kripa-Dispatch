@@ -4,8 +4,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata = {
-  title: "Kripa Truck Dispatch & Logistics — Admin",
-  description: "Fleet, driver and dispatch management for Kripa Truck Dispatch & Logistics.",
+  title: "Kirpa Truck Dispatch & Logistics — Admin",
+  description: "Fleet, driver and dispatch management for Kirpa Truck Dispatch & Logistics.",
   icons: { icon: "/logo.jpeg" },
 };
 

@@ -134,7 +134,7 @@ export default function DispatchList() {
                 <th className="th">Truck</th>
                 <th className="th">Customer</th>
                 <th className="th">Pickup → Delivery</th>
-                <th className="th text-right">KM</th>
+                <th className="th text-right">Miles</th>
                 <th className="th text-right">Invoice</th>
                 <th className="th">Date</th>
                 <th className="th">Status</th>
@@ -151,7 +151,7 @@ export default function DispatchList() {
                     <div className="max-w-40 truncate text-xs text-slate-500">{d.tripName}</div>
                   </td>
                   <td className="td">{driverName(d.driver)}</td>
-                  <td className="td whitespace-nowrap">{d.truck?.plateNumber || d.truck?.unitNumber || "—"}</td>
+                  <td className="td whitespace-nowrap">{d.truck ? `#${d.truck.unitNumber}` : "—"}</td>
                   <td className="td font-medium">{d.customer?.name || "—"}</td>
                   <td className="td">
                     <div>{stopLine(d.pickups?.[0])}</div>

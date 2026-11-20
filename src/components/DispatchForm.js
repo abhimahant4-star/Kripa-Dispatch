@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2, MapPin, Flag } from "lucide-react";
 import { api } from "@/lib/client";
-import { STATES, COUNTRIES } from "@/lib/resources";
-import { DISPATCH_STATUSES, FEE_TYPES, ACCESSORIAL_TYPES, STOP_TYPES, GST_RATES, computeTotals, money } from "@/lib/dispatch";
+import { STATES, COUNTRIES, stateLabel } from "@/lib/resources";
+import { DISPATCH_STATUSES, FEE_TYPES, ACCESSORIAL_TYPES, STOP_TYPES, TAX_RATES, taxLabel, CURRENCY, computeTotals, money } from "@/lib/dispatch";
 import { PageHeader } from "./ui";
 import { RefSelect, useRefOptions, toDateInput } from "./fields";
 
-const emptyStop = () => ({ company: "", date: "", time: "", type: "", street: "", city: "", state: "", zip: "", country: "India", referenceNumber: "", instructions: "", notes: "" });
+const emptyStop = () => ({ company: "", date: "", time: "", type: "", street: "", city: "", state: "", zip: "", country: "USA", referenceNumber: "", instructions: "", notes: "" });
 
 const idOf = (v) => (v && typeof v === "object" ? v._id : v || "");
 
@@ -42,13 +42,13 @@ function F({ label, required, children, wide }) {
 function StopEditor({ stops, setStops, kind }) {
   const companies = useRefOptions("companies");
   const isPickup = kind === "pickup";
-  const label = isPickup ? "Consignor" : "Consignee";
+  const label = isPickup ? "Shipper" : "Receiver";
 
   const update = (i, patch) => setStops(stops.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
   function pickCompany(i, id) {
     const c = companies?.find((x) => x._id === id);
-    update(i, c ? { company: id, street: c.street || "", city: c.city || "", state: c.state || "", zip: c.zip || "", country: c.country || "India" } : { company: id });
+    update(i, c ? { company: id, street: c.street || "", city: c.city || "", state: c.state || "", zip: c.zip || "", country: c.country || "USA" } : { company: id });
   }
 
   return (
@@ -82,15 +82,17 @@ function StopEditor({ stops, setStops, kind }) {
             <F label="City">
               <input className="input" value={s.city || ""} onChange={(e) => update(i, { city: e.target.value })} />
             </F>
-            <F label="State">
+            <F label="State / Province">
               <select className="input" value={s.state || ""} onChange={(e) => update(i, { state: e.target.value })}>
-                <option value="">Select State</option>
+                <option value="">Select State / Province</option>
                 {STATES.map((x) => (
-                  <option key={x}>{x}</option>
+                  <option key={x} value={x}>
+                    {stateLabel(x)}
+                  </option>
                 ))}
               </select>
             </F>
-            <F label="PIN Code">
+            <F label="ZIP / Postal Code">
               <input className="input" value={s.zip || ""} onChange={(e) => update(i, { zip: e.target.value })} />
             </F>
             <F label="Country">
@@ -108,7 +110,7 @@ function StopEditor({ stops, setStops, kind }) {
                 ))}
               </select>
             </F>
-            <F label={isPickup ? "Invoice / PO No." : "Delivery Ref No."}>
+            <F label={isPickup ? "Pickup # / PO #" : "Delivery # / Appointment #"}>
               <input className="input" value={s.referenceNumber || ""} onChange={(e) => update(i, { referenceNumber: e.target.value })} />
             </F>
             <F label="Instructions" wide>
@@ -139,7 +141,7 @@ export default function DispatchForm({ id }) {
     trailer: "",
     pickups: [emptyStop()],
     deliveries: [emptyStop()],
-    primaryFeeType: "Fixed Freight",
+    primaryFeeType: "Flat Rate",
     gstPercent: 0,
     accessories: [],
   });
@@ -213,16 +215,19 @@ export default function DispatchForm({ id }) {
           <Section title="Trip setup" subtitle="Select the main driver, customer and status for this trip.">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <F label="Trip Name" required>
-                <input className="input" required value={d.tripName} onChange={(e) => set({ tripName: e.target.value })} placeholder="Ludhiana → Mumbai, steel coils" />
+                <input className="input" required value={d.tripName} onChange={(e) => set({ tripName: e.target.value })} placeholder="Dallas, TX → Atlanta, GA — dry van" />
               </F>
               <F label="Customer" required>
                 <RefSelect refKey="companies" required value={d.customer} onChange={(v) => set({ customer: v })} placeholder="Select Customer" />
               </F>
-              <F label="LR / Bilty No.">
+              <F label="Broker Load # / PO #">
                 <input className="input" value={d.customerLoadNumber || ""} onChange={(e) => set({ customerLoadNumber: e.target.value })} />
               </F>
-              <F label="E-way Bill No.">
+              <F label="BOL #">
                 <input className="input" value={d.ewayBillNumber || ""} onChange={(e) => set({ ewayBillNumber: e.target.value })} />
+              </F>
+              <F label="PARS / PAPS # (cross-border)">
+                <input className="input" value={d.borderNumber || ""} onChange={(e) => set({ borderNumber: e.target.value })} />
               </F>
               <F label="Select Driver" required>
                 <RefSelect refKey="drivers" required value={d.driver} onChange={chooseDriver} filter={(o) => o.status !== "Inactive"} />
@@ -237,19 +242,19 @@ export default function DispatchForm({ id }) {
               <F label="Commodity">
                 <input className="input" value={d.commodity || ""} onChange={(e) => set({ commodity: e.target.value })} />
               </F>
-              <F label="Weight (kg)">
+              <F label="Weight (lbs)">
                 <input {...num("weight")} />
               </F>
-              <F label="Goods Value (₹)">
+              <F label="Cargo Value ($)">
                 <input {...num("invoiceValue")} />
               </F>
-              <F label="Manual Driver Pay (₹)">
+              <F label="Driver Pay ($)">
                 <input {...num("manualPay")} />
               </F>
-              <F label="Driver Advance (₹)">
+              <F label="Driver Advance / Cash ($)">
                 <input {...num("driverAdvance")} />
               </F>
-              <F label="Driver Bhatta / Allowance (₹)">
+              <F label="Driver Accessorial Pay ($)">
                 <input {...num("accessoryDriverPay")} />
               </F>
             </div>
@@ -291,13 +296,13 @@ export default function DispatchForm({ id }) {
               <F label="Beginning Odometer">
                 <input {...num("beginningOdometer")} />
               </F>
-              <F label="Empty KM">
+              <F label="Deadhead Miles">
                 <input {...num("deadheadMiles")} />
               </F>
-              <F label="Loaded KM">
+              <F label="Loaded Miles">
                 <input {...num("loadedMiles")} />
               </F>
-              <F label="Total KM">
+              <F label="Total Miles">
                 <input className="input bg-slate-50" readOnly value={totals.totalMiles.toFixed(2)} />
               </F>
             </div>
@@ -314,7 +319,7 @@ export default function DispatchForm({ id }) {
 
           <Section
             title="Pickup stops"
-            subtitle="One row per loading point. Choosing a consignor fills in its address."
+            subtitle="One row per pickup. Choosing a shipper fills in its address."
             action={
               <button type="button" className="btn-ghost py-1.5" onClick={() => set({ pickups: [...d.pickups, emptyStop()] })}>
                 <Plus className="h-4 w-4" /> Add Pickup
@@ -326,7 +331,7 @@ export default function DispatchForm({ id }) {
 
           <Section
             title="Delivery stops"
-            subtitle="One row per unloading point (consignee)."
+            subtitle="One row per delivery (receiver)."
             action={
               <button type="button" className="btn-ghost py-1.5" onClick={() => set({ deliveries: [...d.deliveries, emptyStop()] })}>
                 <Plus className="h-4 w-4" /> Add Delivery
@@ -336,7 +341,7 @@ export default function DispatchForm({ id }) {
             <StopEditor kind="delivery" stops={d.deliveries} setStops={(deliveries) => set({ deliveries })} />
           </Section>
 
-          <Section title="Fee charges" subtitle="Freight, fuel surcharge per loaded km, extra charges and GST.">
+          <Section title="Fee charges" subtitle={`Line haul, fuel surcharge per loaded mile, accessorials and tax. Amounts in ${CURRENCY}.`}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <F label="Primary Fee Type">
                 <select className="input" value={d.primaryFeeType} onChange={(e) => set({ primaryFeeType: e.target.value })}>
@@ -345,27 +350,27 @@ export default function DispatchForm({ id }) {
                   ))}
                 </select>
               </F>
-              <F label={d.primaryFeeType === "Fixed Freight" ? "Freight Amount (₹)" : d.primaryFeeType === "Per KM" ? "Rate per Loaded KM (₹)" : "Rate per Tonne (₹)"}>
+              <F label={d.primaryFeeType === "Per Mile" ? "Rate per Loaded Mile ($)" : d.primaryFeeType === "Per Hour" ? "Rate per Hour ($)" : d.primaryFeeType === "Per Unit / Pallet" ? "Rate per Unit ($)" : "Line Haul Rate ($)"}>
                 <input {...num("rate")} />
               </F>
-              {d.primaryFeeType === "Per Tonne" && (
-                <F label="Weight (tonnes)">
+              {(d.primaryFeeType === "Per Hour" || d.primaryFeeType === "Per Unit / Pallet") && (
+                <F label={d.primaryFeeType === "Per Hour" ? "Hours" : "Units / Pallets"}>
                   <input {...num("quantity")} />
                 </F>
               )}
-              <F label="Fuel Surcharge (₹/km)">
+              <F label="Fuel Surcharge ($/mile)">
                 <input {...num("fuelSurchargePerMile")} placeholder="0" />
               </F>
-              <F label="GST">
+              <F label="Tax (Canada GST / HST)">
                 <select className="input" value={d.gstPercent ?? 0} onChange={(e) => set({ gstPercent: Number(e.target.value) })}>
-                  {GST_RATES.map((r) => (
+                  {TAX_RATES.map((r) => (
                     <option key={r} value={r}>
-                      {r ? `${r}%` : "No GST / RCM"}
+                      {taxLabel(r)}
                     </option>
                   ))}
                 </select>
               </F>
-              <F label="Advance Received (₹)">
+              <F label="Advance / Quick Pay Received ($)">
                 <input {...num("invoiceAdvance")} />
               </F>
               <F label="Invoice Date">
@@ -375,8 +380,8 @@ export default function DispatchForm({ id }) {
 
             <div className="mt-6">
               <div className="mb-2 flex items-center justify-between">
-                <p className="label mb-0">Extra charges</p>
-                <button type="button" className="btn-ghost py-1.5" onClick={() => set({ accessories: [...d.accessories, { name: "Loading Charges", amount: "" }] })}>
+                <p className="label mb-0">Accessorial charges</p>
+                <button type="button" className="btn-ghost py-1.5" onClick={() => set({ accessories: [...d.accessories, { name: "Detention", amount: "" }] })}>
                   <Plus className="h-4 w-4" /> Add Charge
                 </button>
               </div>
@@ -393,7 +398,7 @@ export default function DispatchForm({ id }) {
                         type="number"
                         step="any"
                         className="input"
-                        placeholder="Amount ₹"
+                        placeholder="Amount $"
                         value={a.amount ?? ""}
                         onChange={(e) => set({ accessories: d.accessories.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)) })}
                       />
@@ -404,7 +409,7 @@ export default function DispatchForm({ id }) {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">No extra charges (loading, unloading, toll, halting…).</p>
+                <p className="text-sm text-slate-400">No accessorials (detention, lumper, layover, TONU…).</p>
               )}
             </div>
 
@@ -416,7 +421,7 @@ export default function DispatchForm({ id }) {
           </Section>
         </div>
 
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="card overflow-hidden">
             <div className="bg-navy-900 px-5 py-4 text-white">
               <p className="text-xs font-semibold uppercase tracking-widest text-gold-400">Invoice summary</p>
@@ -425,10 +430,10 @@ export default function DispatchForm({ id }) {
             </div>
             <dl className="space-y-2 p-5 text-sm">
               {[
-                ["Freight", totals.primaryCharges],
+                ["Line Haul", totals.primaryCharges],
                 ["Fuel Surcharge", totals.fuelSurcharge],
-                ["Extra Charges", totals.accessoryTotal],
-                [`GST (${d.gstPercent || 0}%)`, totals.gstAmount],
+                ["Accessorials", totals.accessoryTotal],
+                [`Tax (${d.gstPercent || 0}%)`, totals.gstAmount],
                 ["Advance Received", -(parseFloat(d.invoiceAdvance) || 0)],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between">
@@ -441,7 +446,7 @@ export default function DispatchForm({ id }) {
                 <dd className="font-bold text-navy-900">{money(totals.balanceDue)}</dd>
               </div>
               <div className="flex justify-between pt-1 text-xs text-slate-500">
-                <dt>Freight per loaded km</dt>
+                <dt>Rate per loaded mile (RPM)</dt>
                 <dd>{money(totals.ratePerMile)}</dd>
               </div>
             </dl>

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Upload, FileText, X, Loader2 } from "lucide-react";
 import { RESOURCES, refLabel } from "@/lib/resources";
 import { api } from "@/lib/client";
+import { DocButtons } from "./ui";
+import { CHUNK_SIZE, MAX_FILE_SIZE, FILE_TYPES, extOf } from "@/lib/files";
 
 const refCache = {};
 
@@ -56,16 +58,34 @@ export function RefSelect({ refKey, value, onChange, required, placeholder, filt
 export function FileInput({ value, onChange }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [progress, setProgress] = useState(0);
 
   async function upload(file) {
     if (!file) return;
+    if (!FILE_TYPES[extOf(file.name)]) return setErr("Only PDF, image (PNG/JPG/WEBP) or Word files can be uploaded.");
+    if (file.size > MAX_FILE_SIZE) return setErr("File is larger than 15 MB.");
     setBusy(true);
     setErr("");
-    const fd = new FormData();
-    fd.append("file", file);
+    setProgress(0);
     try {
-      const d = await api("/api/upload", { method: "POST", body: fd });
-      onChange(d.url);
+      // Send the file in 3 MB pieces (hosting limits a single request to ~4.5 MB).
+      const total = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+      let id = "";
+      let url = "";
+      for (let i = 0; i < total; i++) {
+        const fd = new FormData();
+        fd.append("chunk", file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE), file.name);
+        fd.append("index", i);
+        fd.append("total", total);
+        fd.append("name", file.name);
+        fd.append("size", file.size);
+        if (id) fd.append("id", id);
+        const d = await api("/api/upload", { method: "POST", body: fd });
+        id = d.id;
+        url = d.url;
+        setProgress(Math.round(((i + 1) / total) * 100));
+      }
+      onChange(url);
     } catch (e) {
       setErr(e.message);
     }
@@ -75,20 +95,24 @@ export function FileInput({ value, onChange }) {
   return (
     <div>
       {value ? (
-        <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm">
-          <FileText className="h-4 w-4 text-royal-600" />
-          <a href={value} target="_blank" className="flex-1 truncate font-medium text-royal-600 hover:underline">
-            View uploaded file
-          </a>
-          <button type="button" onClick={() => onChange("")} className="text-slate-400 hover:text-red-600" title="Remove">
-            <X className="h-4 w-4" />
-          </button>
+        <div className="space-y-2 rounded-lg border border-emerald-300 bg-emerald-50/60 px-3 py-2 text-sm">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span className="flex-1 font-medium text-emerald-800">File uploaded</span>
+            <button type="button" onClick={() => onChange("")} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600" title="Remove file">
+              <X className="h-3.5 w-3.5" /> Remove
+            </button>
+          </div>
+          <DocButtons url={value} compact />
         </div>
       ) : (
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-royal-500 hover:text-royal-600">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          {busy ? "Uploading…" : "Upload PDF or image"}
-          <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx" onChange={(e) => upload(e.target.files?.[0])} />
+          {busy ? `Uploading… ${progress}%` : "Upload PDF, image or Word file"}
+          <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx" onChange={(e) => {
+              upload(e.target.files?.[0]);
+              e.target.value = "";
+            }} />
         </label>
       )}
       {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
@@ -104,7 +128,9 @@ export function FieldInput({ field: f, value, onChange }) {
         <select className="input" {...common} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
           <option value="">Select {f.label}</option>
           {f.options.map((o) => (
-            <option key={o}>{o}</option>
+            <option key={o} value={o}>
+              {f.labels?.[o] ? `${o} — ${f.labels[o]}` : o}
+            </option>
           ))}
         </select>
       );

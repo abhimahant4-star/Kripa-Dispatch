@@ -58,7 +58,7 @@ const StopSchema = new Schema(
     city: String,
     state: String,
     zip: String,
-    country: { type: String, default: "India" },
+    country: { type: String, default: "USA" },
     referenceNumber: String,
     instructions: String,
     notes: String,
@@ -86,9 +86,10 @@ const DispatchSchema = new Schema(
     loadNumber: { type: String, unique: true },
     tripName: { type: String, required: [true, "Trip name is required"], trim: true },
     customer: { type: ObjectId, ref: "Company", required: [true, "Customer is required"] },
-    customerLoadNumber: String, // LR / Bilty number or customer reference
-    ewayBillNumber: String,
-    invoiceValue: Number, // value of goods (for e-way bill)
+    customerLoadNumber: String, // broker load # / PO #
+    ewayBillNumber: String, // BOL number
+    borderNumber: String, // PARS / PAPS (US-Canada)
+    invoiceValue: Number, // cargo value
     status: { type: String, enum: DISPATCH_STATUSES, default: "Planned" },
     dispatcher: { type: ObjectId, ref: "User" },
 
@@ -110,7 +111,7 @@ const DispatchSchema = new Schema(
     pickups: [StopSchema],
     deliveries: [StopSchema],
 
-    primaryFeeType: { type: String, enum: FEE_TYPES, default: "Fixed Freight" },
+    primaryFeeType: { type: String, enum: FEE_TYPES, default: "Flat Rate" },
     rate: Number,
     quantity: Number,
     fuelSurchargePerMile: Number,

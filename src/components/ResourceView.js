@@ -4,14 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, FileText, Loader2, ExternalLink } from "lucide-react";
-import { RESOURCES, refLabel } from "@/lib/resources";
+import { RESOURCES, refLabel, allFields } from "@/lib/resources";
 import { api, canWrite } from "@/lib/client";
-import { PageHeader, Badge, fmtDate, ExpiryText } from "./ui";
+import { PageHeader, Badge, fmtDate, ExpiryText, DocButtons, DocumentList } from "./ui";
 import RecentLoads from "./RecentLoads";
 
 export function FieldValue({ f, v }) {
   if (v === undefined || v === null || v === "") return <span className="text-slate-400">—</span>;
   if (f.badge) return <Badge value={v} />;
+  if (f.labels?.[v]) return `${v} — ${f.labels[v]}`;
   if (f.expiry) return <ExpiryText value={v} />;
   if (f.type === "date") return fmtDate(v);
   if (f.type === "ref")
@@ -20,19 +21,14 @@ export function FieldValue({ f, v }) {
         {refLabel(f.ref, v)}
       </Link>
     );
-  if (f.type === "file")
-    return (
-      <a href={v} target="_blank" className="inline-flex items-center gap-1 font-medium text-royal-600 hover:underline">
-        <FileText className="h-4 w-4" /> Open document
-      </a>
-    );
+  if (f.type === "file") return <DocButtons url={v} compact />;
   if (typeof v === "string" && /^https?:\/\//.test(v))
     return (
       <a href={v} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 break-all font-medium text-royal-600 hover:underline">
         {v} <ExternalLink className="h-3 w-3 shrink-0" />
       </a>
     );
-  if (f.type === "number") return Number(v).toLocaleString("en-IN");
+  if (f.type === "number") return f.name === "year" ? String(v) : Number(v).toLocaleString("en-US");
   return <span className="whitespace-pre-line">{String(v)}</span>;
 }
 
@@ -62,6 +58,9 @@ export default function ResourceView({ resourceKey, id, role }) {
   if (error) return <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>;
   if (!item) return <Loader2 className="mx-auto mt-20 h-6 w-6 animate-spin text-royal-600" />;
 
+  const fileFields = allFields(cfg).filter((f) => f.type === "file");
+  const uploaded = fileFields.filter((f) => item[f.name]).length;
+  const writable = canWrite(resourceKey, role);
   const loadFilter = { drivers: "driver", trucks: "truck", trailers: "trailer", companies: "customer" }[resourceKey];
 
   return (
@@ -79,7 +78,33 @@ export default function ResourceView({ resourceKey, id, role }) {
         )}
       </PageHeader>
       <div className="grid gap-6">
-        {cfg.sections.map((s) => (
+        {fileFields.length > 0 && (
+          <section id="documents" className="card scroll-mt-24 p-5 sm:p-6">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-navy-800">Documents</h2>
+              <span className="rounded-full bg-royal-50 px-3 py-1 text-xs font-semibold text-royal-600">
+                {uploaded} of {fileFields.length} uploaded
+              </span>
+            </div>
+            <DocumentList
+              docs={fileFields.map((f) => [f.label, item[f.name]])}
+              emptyAction={
+                writable ? (
+                  <>
+                    {" · "}
+                    <Link href={`/${resourceKey}/${id}/edit`} className="font-medium text-royal-600 hover:underline">
+                      Upload
+                    </Link>
+                  </>
+                ) : null
+              }
+            />
+          </section>
+        )}
+        {cfg.sections
+          .map((s) => ({ ...s, fields: s.fields.filter((f) => f.type !== "file") }))
+          .filter((s) => s.fields.length)
+          .map((s) => (
           <section key={s.title} className="card p-5 sm:p-6">
             <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-navy-800">{s.title}</h2>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">

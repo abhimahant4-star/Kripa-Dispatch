@@ -32,7 +32,7 @@ export function resourceMeta(key) {
       searchFields: ["loadNumber", "tripName", "customerLoadNumber", "commodity"],
       filters: ["status", "driver", "truck", "trailer", "customer"],
       populate: [
-        { path: "customer", select: "name city state gstin" },
+        { path: "customer", select: "name city state mcNumber billingEmail paymentTerms" },
         { path: "driver", select: "firstName lastName phone" },
         { path: "teamDrivers", select: "firstName lastName" },
         { path: "truck", select: "unitNumber plateNumber make" },

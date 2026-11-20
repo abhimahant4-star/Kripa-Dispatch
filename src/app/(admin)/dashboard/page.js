@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Route, IdCard, Truck, IndianRupee, AlertTriangle, Plus, BookOpen, Video, Receipt } from "lucide-react";
+import { Route, IdCard, Truck, DollarSign, AlertTriangle, Plus, BookOpen, Video, Receipt } from "lucide-react";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { Models, Dispatch } from "@/models";
@@ -10,7 +10,7 @@ import { driverName } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-const TRUCK_DOCS = [["registrationExpiry","RC"],["insuranceExpiry","Insurance"],["permitExpiry","Permit"],["fitnessExpiry","Fitness certificate"],["pucExpiry","PUC"],["roadTaxExpiry","Road tax"]];
+const TRUCK_DOCS = [["registrationExpiry", "Registration (IRP)"], ["inspectionExpiry", "Annual DOT inspection"], ["insuranceExpiry", "Insurance"], ["iftaExpiry", "IFTA decal"], ["hvutPaidUntil", "HVUT (2290)"]];
 
 async function countBy(model, field) {
   const rows = await model.aggregate([{ $group: { _id: `$${field}`, n: { $sum: 1 } } }]);
@@ -101,8 +101,8 @@ export default async function Dashboard() {
       .limit(10)
       .lean(),
     Models.trucks
-      .find({ $or: [{"registrationExpiry":{ $lte: soon }},{"insuranceExpiry":{ $lte: soon }},{"permitExpiry":{ $lte: soon }},{"fitnessExpiry":{ $lte: soon }},{"pucExpiry":{ $lte: soon }},{"roadTaxExpiry":{ $lte: soon }}] })
-      .select("unitNumber plateNumber registrationExpiry insuranceExpiry permitExpiry fitnessExpiry pucExpiry roadTaxExpiry")
+      .find({ $or: TRUCK_DOCS.map(([k]) => ({ [k]: { $lte: soon } })) })
+      .select(["unitNumber", ...TRUCK_DOCS.map(([k]) => k)].join(" "))
       .limit(10)
       .lean(),
   ]);
@@ -119,11 +119,11 @@ export default async function Dashboard() {
 
   const alerts = [
     ...driverAlerts.flatMap((d) => [
-      d.licenseExpiry && d.licenseExpiry <= soon && { href: `/drivers/${d._id}`, who: driverName(d), what: "Driving licence", date: d.licenseExpiry },
-      d.medicalCardExpiry && d.medicalCardExpiry <= soon && { href: `/drivers/${d._id}`, who: driverName(d), what: "Medical fitness", date: d.medicalCardExpiry },
+      d.licenseExpiry && d.licenseExpiry <= soon && { href: `/drivers/${d._id}`, who: driverName(d), what: "CDL", date: d.licenseExpiry },
+      d.medicalCardExpiry && d.medicalCardExpiry <= soon && { href: `/drivers/${d._id}`, who: driverName(d), what: "DOT medical card", date: d.medicalCardExpiry },
     ]),
     ...truckAlerts.flatMap((t) => [
-      ...TRUCK_DOCS.map(([k, what]) => t[k] && t[k] <= soon && { href: `/trucks/${t._id}`, who: t.plateNumber || `Truck ${t.unitNumber}`, what, date: t[k] }),
+      ...TRUCK_DOCS.map(([k, what]) => t[k] && t[k] <= soon && { href: `/trucks/${t._id}`, who: `Truck #${t.unitNumber}`, what, date: t[k] }),
     ]),
   ]
     .filter(Boolean)
@@ -135,7 +135,7 @@ export default async function Dashboard() {
         <div className="absolute inset-0 bg-[linear-gradient(110deg,#0a1a45_0%,#0f2560_45%,#1d4fd1_75%,#d4a017_120%)]" />
         <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-400">Kripa Dispatch Control Center</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-400">Kirpa Dispatch Control Center</p>
             <h1 className="mt-2 text-3xl font-bold">Welcome back, {session.name?.split(" ")[0]}</h1>
             <p className="mt-2 max-w-xl text-sm text-slate-300">
               {activeCount} load{activeCount === 1 ? "" : "s"} on the road right now · {driverCounts.Available || 0} drivers and {truckCounts.Available || 0} trucks available.
@@ -157,7 +157,7 @@ export default async function Dashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi icon={Route} label="Active loads" value={activeCount} sub={`${sum(loadCounts)} dispatches all time`} href="/dispatches" accent="bg-royal-100 text-royal-600" />
-        <Kpi icon={IndianRupee} label="Revenue this month" value={money(Math.round(monthRev[0]?.t || 0)).replace(/\.00$/, "")} sub={`${monthRev[0]?.n || 0} loads booked`} href="/dispatches" accent="bg-gold-100 text-gold-600" />
+        <Kpi icon={DollarSign} label="Revenue this month" value={money(Math.round(monthRev[0]?.t || 0)).replace(/\.00$/, "")} sub={`${monthRev[0]?.n || 0} loads booked`} href="/dispatches" accent="bg-gold-100 text-gold-600" />
         <Kpi icon={Receipt} label="Awaiting payment" value={money(Math.round(unpaid[0]?.t || 0)).replace(/\.00$/, "")} sub={`${unpaid[0]?.n || 0} delivered / invoiced`} href="/dispatches" accent="bg-amber-100 text-amber-700" />
         <Kpi icon={IdCard} label="Drivers" value={`${driverCounts.Available || 0} / ${sum(driverCounts)}`} sub={`${driverCounts["On Trip"] || 0} on trip · available / total`} href="/drivers" accent="bg-emerald-100 text-emerald-700" />
         <Kpi icon={Truck} label="Trucks" value={`${truckCounts.Available || 0} / ${sum(truckCounts)}`} sub={`${truckCounts.Maintenance || 0} in maintenance · ${sum(trailerCounts)} trailers`} href="/trucks" accent="bg-navy-800 text-gold-400" />
@@ -209,7 +209,7 @@ export default async function Dashboard() {
               ))}
             </ul>
           ) : (
-            <p className="rounded-lg bg-emerald-50 px-3 py-6 text-center text-sm text-emerald-800">All licences, medical certificates and vehicle papers (RC, permit, insurance, fitness, PUC) are valid.</p>
+            <p className="rounded-lg bg-emerald-50 px-3 py-6 text-center text-sm text-emerald-800">All CDLs, DOT medical cards and truck papers (registration, inspection, insurance, IFTA, HVUT) are valid.</p>
           )}
         </section>
       </div>
@@ -237,7 +237,7 @@ export default async function Dashboard() {
                     <span className="font-semibold text-royal-600">{d.loadNumber}</span>
                     <span className="text-sm">
                       <span className="font-medium text-navy-900">{driverName(d.driver)}</span>
-                      <span className="text-slate-500"> · {d.truck?.plateNumber || `Truck ${d.truck?.unitNumber}`} · {d.customer?.name}</span>
+                      <span className="text-slate-500"> · {`Truck #${d.truck?.unitNumber}`} · {d.customer?.name}</span>
                     </span>
                     <span className="text-sm text-slate-600">
                       {last?.location ? `📍 ${last.location}` : "No location yet"}

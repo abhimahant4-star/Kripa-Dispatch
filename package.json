@@ -1,12 +1,14 @@
 {
-  "name": "kripa-dispatch-admin",
+  "name": "kirpa-dispatch-admin",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev",
     "build": "node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
-    "seed": "node --env-file=.env.local scripts/seed.mjs"
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "backup": "node --env-file=.env.local scripts/backup.mjs",
+    "restore": "node --env-file=.env.local scripts/restore.mjs"
   },
   "dependencies": {
     "bcryptjs": "2.4.3",

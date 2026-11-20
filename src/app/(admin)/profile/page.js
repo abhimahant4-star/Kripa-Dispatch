@@ -3,7 +3,8 @@ import { FileText, Pencil } from "lucide-react";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { Models } from "@/models";
-import { Badge, fmtDate } from "@/components/ui";
+import { Badge, fmtDate, DocumentList } from "@/components/ui";
+import { RESOURCES } from "@/lib/resources";
 
 export const dynamic = "force-dynamic";
 
@@ -18,17 +19,12 @@ export default async function Profile() {
     ["Email", u.email],
     ["Phone", u.phone],
     ["Employee / Student ID", u.employeeId],
-    ["Joining Date", fmtDate(u.joiningDate)],
+    ["Start Date", fmtDate(u.joiningDate)],
     ["Batch", u.batch],
-    ["Father Name", u.fatherName],
-    ["Mother Name", u.motherName],
     ["Address", u.address],
+    ["Emergency Contact", u.emergencyContact],
   ];
-  const docs = [
-    ["Matric PDF", u.matricFile],
-    ["10th PDF", u.tenthFile],
-    ["Aadhaar PDF", u.aadhaarFile],
-  ];
+  const docs = RESOURCES.users.sections.find((x) => x.title === "Documents").fields.map((f) => [f.label, u[f.name]]);
 
   return (
     <div className="space-y-6">
@@ -65,19 +61,7 @@ export default async function Profile() {
         </section>
         <section className="card p-6">
           <h2 className="mb-4 font-semibold text-navy-900">Documents</h2>
-          <div className="space-y-2">
-            {docs.map(([k, v]) =>
-              v ? (
-                <a key={k} href={v} target="_blank" className="flex items-center justify-center gap-2 rounded-lg border border-royal-500/40 px-4 py-2.5 text-sm font-medium text-royal-600 hover:bg-royal-50">
-                  <FileText className="h-4 w-4" /> {k}
-                </a>
-              ) : (
-                <p key={k} className="rounded-lg border border-dashed border-slate-300 px-4 py-2.5 text-center text-sm text-slate-400">
-                  {k} — not uploaded
-                </p>
-              )
-            )}
-          </div>
+          <DocumentList docs={docs} />
           {session.role !== "admin" && <p className="mt-4 text-xs text-slate-500">Ask an admin to update your profile details or documents.</p>}
         </section>
       </div>

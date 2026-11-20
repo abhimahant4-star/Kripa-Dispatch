@@ -1,7 +1,7 @@
 // Edge-safe session helpers (used by middleware and server code).
 import { SignJWT, jwtVerify } from "jose";
 
-export const SESSION_COOKIE = "kripa_session";
+export const SESSION_COOKIE = "kirpa_session";
 
 function key() {
   return new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-me");

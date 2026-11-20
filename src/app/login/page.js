@@ -35,7 +35,7 @@ function LoginForm() {
         <label className="label" htmlFor="email">Email</label>
         <div className="relative">
           <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input id="email" type="email" required autoComplete="username" className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@kripadispatch.com" />
+          <input id="email" type="email" required autoComplete="username" className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@kirpadispatch.com" />
         </div>
       </div>
       <div>
@@ -66,12 +66,12 @@ export default function LoginPage() {
               Assign drivers to trucks, build dispatches with pickup and delivery stops, track check calls and print invoices.
             </p>
           </div>
-          <p className="text-sm text-slate-400">© {new Date().getFullYear()} Kripa Truck Dispatch & Logistics</p>
+          <p className="text-sm text-slate-400">© {new Date().getFullYear()} Kirpa Truck Dispatch & Logistics</p>
         </div>
       </div>
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          <img src="/logo.jpeg" alt="Kripa Truck Dispatch & Logistics" className="mx-auto mb-8 w-64" />
+          <img src="/logo.jpeg" alt="Kirpa Truck Dispatch & Logistics" className="mx-auto mb-8 w-64" />
           <div className="card p-6">
             <h2 className="text-xl font-bold text-navy-900">Admin sign in</h2>
             <p className="mb-6 mt-1 text-sm text-slate-500">Use your staff account to continue.</p>

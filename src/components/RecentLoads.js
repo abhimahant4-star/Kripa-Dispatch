@@ -38,8 +38,8 @@ export function LoadsTable({ items }) {
               <td className="td">
                 <div>{driverName(d.driver)}</div>
                 <div className="text-xs text-slate-500">
-                  {d.truck ? d.truck.plateNumber || `Truck ${d.truck.unitNumber}` : ""}
-                  {d.trailer ? ` · ${d.trailer.plateNumber || `Trailer ${d.trailer.unitNumber}`}` : ""}
+                  {d.truck ? `Truck #${d.truck.unitNumber}` : ""}
+                  {d.trailer ? ` · Trailer #${d.trailer.unitNumber}` : ""}
                 </div>
               </td>
               <td className="td text-right font-semibold">{money(d.invoiceTotal)}</td>

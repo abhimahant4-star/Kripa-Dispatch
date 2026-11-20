@@ -4,3 +4,7 @@ node_modules
 uploads/*
 !uploads/.gitkeep
 .next-check
+
+# Data backups (contain private data — never commit)
+backup/*
+!backup/README.md

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Eye, Pencil, Trash2, Plus, Search, ChevronUp, ChevronDown, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { RESOURCES, allFields, refLabel } from "@/lib/resources";
 import { api, canWrite } from "@/lib/client";
-import { PageHeader, Badge, fmtDate, ExpiryText, Empty } from "./ui";
+import { PageHeader, Badge, fmtDate, ExpiryText, Empty, DocButtons } from "./ui";
 
 const PAGE_SIZE = 20;
 
@@ -41,14 +41,20 @@ export function Cell({ col, row, resourceKey }) {
       break;
     }
     case "file":
-      main = v ? (
-        <a href={v} target="_blank" className="inline-flex items-center gap-1 font-medium text-royal-600 hover:underline">
-          <FileText className="h-4 w-4" /> Open PDF
-        </a>
+      main = <DocButtons url={v} compact />;
+      break;
+    case "docs": {
+      const files = allFields(cfg).filter((f) => f.type === "file");
+      const n = files.filter((f) => row[f.name]).length;
+      main = n ? (
+        <Link href={`/${resourceKey}/${row._id}#documents`} className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-royal-500/40 px-2 py-1 text-xs font-semibold text-royal-600 hover:bg-royal-50">
+          <FileText className="h-3.5 w-3.5" /> {n} of {files.length}
+        </Link>
       ) : (
-        <span className="text-slate-400">—</span>
+        <span className="text-xs text-slate-400">None</span>
       );
       break;
+    }
     case "link":
       main = v ? (
         <a href={v} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-royal-600 hover:underline">
@@ -68,7 +74,7 @@ export function Cell({ col, row, resourceKey }) {
   let sub = null;
   if (col.sub) {
     const s = row[col.sub];
-    if (col.subRender === "expiry") sub = s ? <>Valid till <ExpiryText value={s} /></> : null;
+    if (col.subRender === "expiry") sub = s ? <>Exp. <ExpiryText value={s} /></> : null;
     else if (col.subRender === "tonnes") sub = s ? `${s} tonnes` : null;
     else if (col.subRender === "ft") sub = s ? `${s} ft` : null;
     else sub = s ? `${col.subPrefix || ""}${s}` : null;
@@ -86,6 +92,11 @@ export default function ResourceList({ resourceKey, role }) {
   const cfg = RESOURCES[resourceKey];
   const filterFields = allFields(cfg).filter((f) => f.filter && f.options);
   const writable = canWrite(resourceKey, role);
+  // Resources with uploads get a "Documents" column unless a file column is already shown.
+  const columns =
+    allFields(cfg).some((f) => f.type === "file") && !cfg.columns.some((c) => c.render === "file")
+      ? [...cfg.columns.slice(0, -1), { key: "_docs", label: "Documents", render: "docs", noSort: true }, cfg.columns.at(-1)]
+      : cfg.columns;
 
   const [draft, setDraft] = useState({ q: "" });
   const [query, setQuery] = useState({ q: "" });
@@ -193,12 +204,16 @@ export default function ResourceList({ resourceKey, role }) {
           <table className="min-w-full divide-y divide-slate-100">
             <thead className="bg-slate-50/70">
               <tr>
-                {cfg.columns.map((c) => (
+                {columns.map((c) => (
                   <th key={c.key} className="th">
-                    <button className="inline-flex items-center gap-1 uppercase" onClick={() => toggleSort(c.key)}>
-                      {c.label}
-                      {sort === c.key ? <ChevronUp className="h-3 w-3" /> : sort === `-${c.key}` ? <ChevronDown className="h-3 w-3" /> : null}
-                    </button>
+                    {c.noSort ? (
+                      c.label
+                    ) : (
+                      <button className="inline-flex items-center gap-1 uppercase" onClick={() => toggleSort(c.key)}>
+                        {c.label}
+                        {sort === c.key ? <ChevronUp className="h-3 w-3" /> : sort === `-${c.key}` ? <ChevronDown className="h-3 w-3" /> : null}
+                      </button>
+                    )}
                   </th>
                 ))}
                 <th className="th text-right">Actions</th>
@@ -207,7 +222,7 @@ export default function ResourceList({ resourceKey, role }) {
             <tbody className="divide-y divide-slate-100">
               {data.items.map((row) => (
                 <tr key={row._id} className="hover:bg-royal-50/40">
-                  {cfg.columns.map((c) => (
+                  {columns.map((c) => (
                     <td key={c.key} className="td">
                       <Cell col={c} row={row} resourceKey={resourceKey} />
                     </td>

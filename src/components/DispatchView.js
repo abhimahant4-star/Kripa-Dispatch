@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Pencil, Printer, Loader2, MapPin, Flag, Truck, Container, User, Send, Check } from "lucide-react";
 import { api } from "@/lib/client";
-import { DISPATCH_STATUSES, money, num } from "@/lib/dispatch";
+import { DISPATCH_STATUSES, CURRENCY, taxLabel, money, num } from "@/lib/dispatch";
 import { PageHeader, Badge, fmtDate } from "./ui";
 import { driverName } from "@/lib/format";
 
@@ -58,70 +58,54 @@ function StopCard({ stop, kind, n }) {
   );
 }
 
-const ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-const TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-
-function twoDigits(n) {
-  return n < 20 ? ONES[n] : `${TENS[Math.floor(n / 10)]}${n % 10 ? ` ${ONES[n % 10]}` : ""}`;
-}
-
-// Indian numbering: crore, lakh, thousand, hundred.
-function inWords(amount) {
-  let n = Math.floor(Math.abs(amount || 0));
-  const paise = Math.round((Math.abs(amount || 0) - n) * 100);
-  if (!n && !paise) return "Zero Rupees Only";
-  const parts = [];
-  for (const [size, name] of [[10000000, "Crore"], [100000, "Lakh"], [1000, "Thousand"], [100, "Hundred"]]) {
-    if (n >= size) {
-      parts.push(`${size === 100 ? ONES[Math.floor(n / size)] : twoDigits(Math.floor(n / size))} ${name}`);
-      n %= size;
-    }
-  }
-  if (n) parts.push(twoDigits(n));
-  return `${parts.join(" ")} Rupees${paise ? ` and ${twoDigits(paise)} Paise` : ""} Only`;
-}
-
 const COMPANY = {
   address: process.env.NEXT_PUBLIC_COMPANY_ADDRESS || "",
   phone: process.env.NEXT_PUBLIC_COMPANY_PHONE || "",
-  gstin: process.env.NEXT_PUBLIC_COMPANY_GSTIN || "",
+  mc: process.env.NEXT_PUBLIC_COMPANY_MC || "",
+  dot: process.env.NEXT_PUBLIC_COMPANY_DOT || "",
+  taxNo: process.env.NEXT_PUBLIC_COMPANY_GST_HST || "",
 };
 
 function stopCities(stops) {
-  return (stops || []).map((s) => s.city).filter(Boolean).join(", ") || "—";
+  return (stops || []).map((s) => [s.city, s.state].filter(Boolean).join(", ")).filter(Boolean).join(" / ") || "—";
 }
 
 function Invoice({ d }) {
   const rows = [
     [
-      d.primaryFeeType === "Fixed Freight"
-        ? `Freight charges — ${stopCities(d.pickups)} to ${stopCities(d.deliveries)}`
-        : d.primaryFeeType === "Per KM"
-        ? `Freight — ${num(d.loadedMiles)} km × ${money(d.rate)}`
-        : `Freight — ${d.quantity || 0} tonnes × ${money(d.rate)}`,
+      d.primaryFeeType === "Per Mile"
+        ? `Line haul — ${num(d.loadedMiles)} mi × ${money(d.rate)}`
+        : d.primaryFeeType === "Per Hour"
+        ? `Line haul — ${d.quantity || 0} hrs × ${money(d.rate)}`
+        : d.primaryFeeType === "Per Unit / Pallet"
+        ? `Line haul — ${d.quantity || 0} units × ${money(d.rate)}`
+        : `Line haul — ${stopCities(d.pickups)} to ${stopCities(d.deliveries)}`,
       d.primaryCharges,
     ],
   ];
-  if (d.fuelSurcharge) rows.push([`Fuel surcharge — ${num(d.loadedMiles)} km × ${money(d.fuelSurchargePerMile)}`, d.fuelSurcharge]);
+  if (d.fuelSurcharge) rows.push([`Fuel surcharge — ${num(d.loadedMiles)} mi × ${money(d.fuelSurchargePerMile)}`, d.fuelSurcharge]);
   for (const a of d.accessories || []) rows.push([a.name, a.amount]);
-  const half = (d.gstAmount || 0) / 2;
-  const interState = d.customer?.state && d.pickups?.[0]?.state && d.customer.state !== d.pickups[0].state;
 
   return (
     <section className="print-area card p-6 sm:p-8">
       <div className="flex flex-col justify-between gap-6 border-b border-slate-200 pb-6 sm:flex-row">
         <div>
-          <img src="/logo.jpeg" alt="Kripa Truck Dispatch & Logistics" className="h-24 w-auto" />
+          <img src="/logo.jpeg" alt="Kirpa Truck Dispatch & Logistics" className="h-24 w-auto" />
           {COMPANY.address && <p className="mt-2 max-w-xs text-xs text-slate-600">{COMPANY.address}</p>}
-          {COMPANY.phone && <p className="text-xs text-slate-600">Ph: {COMPANY.phone}</p>}
-          {COMPANY.gstin && <p className="text-xs font-semibold text-slate-700">GSTIN: {COMPANY.gstin}</p>}
+          {COMPANY.phone && <p className="text-xs text-slate-600">Phone: {COMPANY.phone}</p>}
+          {(COMPANY.mc || COMPANY.dot) && (
+            <p className="text-xs font-semibold text-slate-700">{[COMPANY.mc && `MC# ${COMPANY.mc}`, COMPANY.dot && `USDOT# ${COMPANY.dot}`].filter(Boolean).join(" · ")}</p>
+          )}
+          {COMPANY.taxNo && <p className="text-xs text-slate-600">GST/HST# {COMPANY.taxNo}</p>}
         </div>
         <div className="sm:text-right">
-          <p className="text-3xl font-bold tracking-tight text-navy-900">{d.gstPercent ? "TAX INVOICE" : "FREIGHT BILL"}</p>
-          <p className="mt-1 text-sm text-slate-600">Bill No. {d.loadNumber}</p>
+          <p className="text-3xl font-bold tracking-tight text-navy-900">INVOICE</p>
+          <p className="mt-1 text-sm text-slate-600">Invoice # {d.loadNumber}</p>
           <p className="text-sm text-slate-600">Date: {fmtDate(d.invoiceDate || d.updatedAt)}</p>
-          {d.customerLoadNumber && <p className="text-sm text-slate-600">LR / Bilty No. {d.customerLoadNumber}</p>}
-          {d.ewayBillNumber && <p className="text-sm text-slate-600">E-way Bill No. {d.ewayBillNumber}</p>}
+          {d.customer?.paymentTerms && <p className="text-sm text-slate-600">Terms: {d.customer.paymentTerms}</p>}
+          {d.customerLoadNumber && <p className="text-sm text-slate-600">Load / PO # {d.customerLoadNumber}</p>}
+          {d.ewayBillNumber && <p className="text-sm text-slate-600">BOL # {d.ewayBillNumber}</p>}
+          {d.borderNumber && <p className="text-sm text-slate-600">PARS / PAPS # {d.borderNumber}</p>}
         </div>
       </div>
 
@@ -130,10 +114,11 @@ function Invoice({ d }) {
           <p className="label">Bill to</p>
           <p className="font-semibold text-navy-900">{d.customer?.name}</p>
           <p className="text-sm text-slate-600">{[d.customer?.city, d.customer?.state].filter(Boolean).join(", ")}</p>
-          {d.customer?.gstin && <p className="text-xs text-slate-600">GSTIN: {d.customer.gstin}</p>}
+          {d.customer?.mcNumber && <p className="text-xs text-slate-600">{d.customer.mcNumber}</p>}
+          {d.customer?.billingEmail && <p className="text-xs text-slate-600">{d.customer.billingEmail}</p>}
         </div>
         <div>
-          <p className="label">Consignor</p>
+          <p className="label">Shipper</p>
           {d.pickups.map((s, i) => (
             <p key={i} className="text-sm text-slate-700">
               <span className="font-medium">{s.company?.name}</span> — {[s.city, s.state].filter(Boolean).join(", ")} ({fmtDate(s.date)})
@@ -141,7 +126,7 @@ function Invoice({ d }) {
           ))}
         </div>
         <div>
-          <p className="label">Consignee</p>
+          <p className="label">Receiver</p>
           {d.deliveries.map((s, i) => (
             <p key={i} className="text-sm text-slate-700">
               <span className="font-medium">{s.company?.name}</span> — {[s.city, s.state].filter(Boolean).join(", ")} ({fmtDate(s.date)})
@@ -156,26 +141,26 @@ function Invoice({ d }) {
           {driverName(d.driver)}
         </div>
         <div>
-          <p className="label">Vehicle No.</p>
-          {d.truck?.plateNumber || d.truck?.unitNumber || "—"}
-          {d.trailer ? ` / ${d.trailer.plateNumber || d.trailer.unitNumber}` : ""}
+          <p className="label">Truck / Trailer</p>
+          {d.truck ? `#${d.truck.unitNumber}` : "—"}
+          {d.trailer ? ` / #${d.trailer.unitNumber}` : ""}
         </div>
         <div>
-          <p className="label">Distance</p>
-          {num(d.loadedMiles)} km
+          <p className="label">Loaded Miles</p>
+          {num(d.loadedMiles)} mi
         </div>
         <div>
-          <p className="label">Goods</p>
+          <p className="label">Commodity</p>
           {d.commodity || "—"}
-          {d.weight ? ` · ${num(d.weight)} kg` : ""}
+          {d.weight ? ` · ${num(d.weight)} lbs` : ""}
         </div>
       </div>
 
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b-2 border-navy-800 text-left">
-            <th className="py-2 font-semibold text-navy-900">Description (SAC 9965 — goods transport)</th>
-            <th className="py-2 text-right font-semibold text-navy-900">Amount</th>
+            <th className="py-2 font-semibold text-navy-900">Description</th>
+            <th className="py-2 text-right font-semibold text-navy-900">Amount ({CURRENCY})</th>
           </tr>
         </thead>
         <tbody>
@@ -190,37 +175,22 @@ function Invoice({ d }) {
 
       <div className="ml-auto mt-4 w-full max-w-sm space-y-1 text-sm">
         <div className="flex justify-between">
-          <span className="text-slate-500">Taxable Value</span>
+          <span className="text-slate-500">Subtotal</span>
           <span className="font-semibold">{money(d.subtotal)}</span>
         </div>
         {d.gstPercent ? (
-          interState ? (
-            <div className="flex justify-between">
-              <span className="text-slate-500">IGST @ {d.gstPercent}%</span>
-              <span>{money(d.gstAmount)}</span>
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between">
-                <span className="text-slate-500">CGST @ {d.gstPercent / 2}%</span>
-                <span>{money(half)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">SGST @ {d.gstPercent / 2}%</span>
-                <span>{money(half)}</span>
-              </div>
-            </>
-          )
-        ) : (
-          <p className="text-xs text-slate-500">GST payable by recipient under reverse charge (RCM), if applicable.</p>
-        )}
+          <div className="flex justify-between">
+            <span className="text-slate-500">{taxLabel(d.gstPercent)}</span>
+            <span>{money(d.gstAmount)}</span>
+          </div>
+        ) : null}
         <div className="flex justify-between">
           <span className="text-slate-500">Invoice Total</span>
           <span className="font-semibold">{money(d.invoiceTotal)}</span>
         </div>
         {d.invoiceAdvance ? (
           <div className="flex justify-between">
-            <span className="text-slate-500">Less Advance Received</span>
+            <span className="text-slate-500">Less Advance / Paid</span>
             <span>-{money(d.invoiceAdvance)}</span>
           </div>
         ) : null}
@@ -229,15 +199,11 @@ function Invoice({ d }) {
           <span className="font-bold text-navy-900">{money(d.balanceDue)}</span>
         </div>
       </div>
-      <p className="mt-3 text-right text-xs italic text-slate-600">{inWords(d.balanceDue)}</p>
 
       {d.notes && <p className="mt-6 whitespace-pre-line text-sm text-slate-600">{d.notes}</p>}
       <div className="mt-10 flex items-end justify-between border-t border-slate-200 pt-4 text-xs text-slate-500">
-        <p>Thank you for your business — Kripa Truck Dispatch & Logistics</p>
-        <p className="text-right">
-          <span className="mb-8 block">For Kripa Truck Dispatch & Logistics</span>
-          Authorised Signatory
-        </p>
+        <p>Thank you for your business — Kirpa Truck Dispatch & Logistics</p>
+        <p className="text-right">Please include the invoice # with your payment.</p>
       </div>
     </section>
   );
@@ -325,7 +291,7 @@ export default function DispatchView({ id }) {
                 <Truck className="h-4 w-4 text-royal-600" />
                 {d.truck ? (
                   <Link href={`/trucks/${d.truck._id}`} className="font-medium text-royal-600 hover:underline">
-                    {d.truck.plateNumber || `Truck ${d.truck.unitNumber}`}
+                    Unit {d.truck.unitNumber}{d.truck.make ? ` · ${d.truck.make}` : ""}
                   </Link>
                 ) : (
                   "—"
@@ -335,7 +301,7 @@ export default function DispatchView({ id }) {
                 <Container className="h-4 w-4 text-royal-600" />
                 {d.trailer ? (
                   <Link href={`/trailers/${d.trailer._id}`} className="font-medium text-royal-600 hover:underline">
-                    {d.trailer.plateNumber || `Trailer ${d.trailer.unitNumber}`} {d.trailer.type && `· ${d.trailer.type}`}
+                    Trailer {d.trailer.unitNumber} {d.trailer.type && `· ${d.trailer.type}`}
                   </Link>
                 ) : (
                   <span className="text-slate-400">No trailer</span>
@@ -344,12 +310,12 @@ export default function DispatchView({ id }) {
             </ul>
             <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-sm">
               {[
-                ["Loaded km", num(d.loadedMiles)],
-                ["Empty km", num(d.deadheadMiles)],
+                ["Loaded miles", num(d.loadedMiles)],
+                ["Deadhead miles", num(d.deadheadMiles)],
                 ["Driver pay", money(d.manualPay)],
                 ["Driver advance", money(d.driverAdvance)],
-                ["Driver bhatta", money(d.accessoryDriverPay)],
-                ["Freight / km", money(d.ratePerMile)],
+                ["Driver accessorial pay", money(d.accessoryDriverPay)],
+                ["Rate per mile", money(d.ratePerMile)],
                 ["Dispatcher", d.dispatcher?.name || "—"],
               ].map(([k, v]) => (
                 <div key={k}>
@@ -379,7 +345,7 @@ export default function DispatchView({ id }) {
                   <option key={s}>{s}</option>
                 ))}
               </select>
-              <input className="input" placeholder="Current location (e.g. Jaipur bypass, NH 48)" value={call.location} onChange={(e) => setCall({ ...call, location: e.target.value })} />
+              <input className="input" placeholder="Current location (e.g. I-40 near Amarillo, TX)" value={call.location} onChange={(e) => setCall({ ...call, location: e.target.value })} />
               <input className="input" placeholder="Note (ETA, delays, etc.)" value={call.note} onChange={(e) => setCall({ ...call, note: e.target.value })} />
               <button className="btn-navy w-full" disabled={posting}>
                 {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Add update
@@ -390,7 +356,7 @@ export default function DispatchView({ id }) {
                 <li key={c._id} className="border-l-2 border-gold-500 pl-3">
                   <div className="flex items-center gap-2">
                     <Badge value={c.status} />
-                    <span className="text-xs text-slate-500">{new Date(c.at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                    <span className="text-xs text-slate-500">{new Date(c.at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
                   </div>
                   {c.location && <p className="mt-1 text-sm font-medium text-navy-900">📍 {c.location}</p>}
                   {c.note && <p className="text-sm text-slate-600">{c.note}</p>}
