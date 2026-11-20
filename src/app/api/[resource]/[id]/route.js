@@ -42,6 +42,11 @@ export async function DELETE(_req, { params }) {
     if (resource === "users" && id === g.session.sub) return json({ error: "You can't delete your own account" }, 400);
     const doc = await g.meta.model.findByIdAndDelete(id);
     if (!doc) return json({ error: "Not found" }, 404);
+    // Free the driver/truck/trailer if this load was still on the road.
+    if (resource === "dispatches") {
+      doc.status = "Cancelled";
+      await syncFleet(doc);
+    }
     return json({ ok: true });
   } catch (e) {
     return errorResponse(e);
